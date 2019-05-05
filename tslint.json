@@ -1,0 +1,12 @@
+{
+  "extends": "tslint:recommended",
+  "rules": {
+    "semicolon": [true, "never"],
+    "indent": [true, "spaces", 2],
+    "quotemark": [true, "single", "avoid-escape"],
+    "arrow-parens": false,
+    "no-console": false,
+    "max-line-length": false,
+    "class-name": false
+  }
+}
