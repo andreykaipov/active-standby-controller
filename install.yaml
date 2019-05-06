@@ -1,0 +1,49 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: active-standby-controller
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: active-standby-controller
+  namespace: kube-system
+rules:
+- apiGroups: ['']
+  resources: [services, pods]
+  verbs: [watch, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: active-standby-controller
+subjects:
+- kind: ServiceAccount
+  name: active-standby-controller
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: active-standby-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: active-standby-controller
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: active-standby-controller
+  template:
+    metadata:
+      labels:
+        app: active-standby-controller
+    spec:
+      serviceAccountName: active-standby-controller
+      containers:
+      - name: active-standby-controller
+        image: quay.io/qoqodev/active-standby-controller:slim
