@@ -7,7 +7,7 @@
     "lint": "tslint --project .",
     "build": "tsc --project ."
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@kubernetes/client-node": "^0.8.2"
   },
