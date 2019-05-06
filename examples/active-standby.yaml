@@ -1,0 +1,57 @@
+---
+# regular service
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-hostname
+spec:
+  selector:
+    app: echo-hostname
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+# master service
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-hostname-master
+  annotations:
+    qoqo.dev/service-mode: active-standby
+spec:
+  selector:
+    app: echo-hostname
+  ports:
+  - name: foo
+    port: 8080
+    targetPort: 8080
+---
+# dummy http servers that echo their own hostname in a response header
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-hostname
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: echo-hostname
+  template:
+    metadata:
+      labels:
+        app: echo-hostname
+    spec:
+      containers:
+      - image: alpine
+        name: echo-hostname
+        command:
+        - sh
+        - -c
+        - |
+          trap 'jobs -p | xargs kill -TERM' TERM
+          apk add -U socat
+          socat -s tcp-listen:8080,fork system:"echo 'HTTP/1.1 200 OK'; echo 'Hostname: $HOSTNAME'; echo" &
+          wait
+        readinessProbe:
+          tcpSocket:
+            port: 8080
