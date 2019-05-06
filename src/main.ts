@@ -26,7 +26,7 @@ const loop = async () => {
             // look at the eligible pods in our service's namespace
             const eligiblePods = podCache.list(ns)
                 .map(pod => pod as V1Pod)
-                .filter(pod => pod.status.phase === 'Running')
+                .filter(pod => pod.status.phase === 'Running' && pod.status.containerStatuses.every(status => status.ready))
                 .filter(pod => {
                     const labels = pod.metadata.labels || {}
                     return Object.keys(ogSelectors).every(k => ogSelectors[k] === labels[k])
