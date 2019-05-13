@@ -1,0 +1,92 @@
+---
+# regular service
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-master
+spec:
+  selector:
+    app: echo-master
+  ports:
+  - port: 8080
+    targetPort: 8080
+---
+# master discovery service
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-master-discovery
+  annotations:
+    qoqo.dev/service-mode: active-standby
+spec:
+  clusterIP: None
+  selector:
+    app: echo-master
+---
+# http servers that echo the elected master's IP in a response header
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-master
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: echo-master
+  template:
+    metadata:
+      labels:
+        app: echo-master
+    spec:
+      volumes:
+      - name: master
+        emptyDir: {}
+      containers:
+      - image: alpine
+        name: echo-master
+        command:
+        - sh
+        - -c
+        - |
+          trap 'jobs -p | xargs kill -TERM' TERM
+          apk add -U socat
+          socat -s tcp-listen:8080,fork system:"echo 'HTTP/1.1 200 OK'; printf 'Master: '; cat /tmp/master; echo" &
+          wait
+        volumeMounts:
+        - name: master
+          mountPath: /tmp
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+      - image: alpine
+        name: master-checker
+        command:
+        - sh
+        - -c
+        - |
+          trap 'jobs -p | xargs kill -TERM' TERM
+          self="$(hostname -i)"
+          discover_master() { getent hosts echo-master-discovery | cut -d' ' -f1; }
+
+          # try to resolve the master discovery service for a new master
+          # update the /tmp/master file for the app container
+          # if we're the master, just chill
+          # otherwise, ping the master to make sure it's up
+          # if the ping fails, repeat
+          while :; do
+              master="$(discover_master)"
+              echo "$master" > /tmp/master
+              if [ "$self" = "$master" ]; then
+                  tail -f /dev/null
+              else
+                  while ping -c1 -W1 "$master" >/dev/null; do sleep 1; done
+              fi
+          done &
+
+          # in addition, periodically discover the master regardless of pings
+          while :; do discover_master > /tmp/master; sleep 5; done &
+
+          wait
+        volumeMounts:
+        - name: master
+          mountPath: /tmp
