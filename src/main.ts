@@ -12,6 +12,11 @@ const podCache = new k8s.ListWatch('/api/v1/pods', watch, f => f([]))
 const serviceModeAnnotation = 'qoqo.dev/service-mode'
 const podDesignationLabel = 'qoqo.dev/pod-designation'
 
+// 1. The controller listens for services with the annotation `qoqo.dev/service-mode: active-standby`.
+// 2. When found, it'll look at the pods the service selects, and check to see if there's an active pod.
+// 3. If there isn't one, promote the first pod by labeling it with `qoqo.dev/pod-designation: active`.
+// 4. Now augment the annotated service's selectors with the same label so it only selects the active pod.
+
 const loop = async () => {
     svcCache.list()
         .map(svc => svc as V1Service)
